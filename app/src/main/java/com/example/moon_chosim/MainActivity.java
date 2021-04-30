@@ -105,6 +105,7 @@ public class MainActivity extends AppCompatActivity {
             }
             try {
                 mCamera.close();
+                m.set_turn(false);
                 cameraManager.openCamera(String.valueOf(CameraCharacteristics.LENS_FACING_BACK), cameraDeviceCallback, null);
             } catch (CameraAccessException e) {
                 e.printStackTrace();
@@ -116,6 +117,7 @@ public class MainActivity extends AppCompatActivity {
             }
             try {
                 mCamera.close();
+                m.set_turn(true);
                 cameraManager.openCamera(String.valueOf(CameraCharacteristics.LENS_FACING_FRONT), cameraDeviceCallback, null);
             } catch (CameraAccessException e) {
                 e.printStackTrace();
@@ -160,14 +162,22 @@ public class MainActivity extends AppCompatActivity {
         //String CameraID = String.valueOf(CameraCharacteristics.LENS_FACING_FRONT);
         String CameraID = cameraManager.getCameraIdList()[0];
         CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(CameraID);
+        m.set_size(characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE));
 
-        //StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-        //Size size = map.getOutputSizes(ImageFormat.JPEG)[0];
-        //setAspectRatioTextureView(size.getHeight(), size.getWidth());
-        //Log.d(TAG, size.getWidth() + " " + size.getHeight());
+        /*
+        LENS_FACING_FRONT: 전면 카메라. value : 0
+        LENS_FACING_BACK: 후면 카메라. value : 1
+        LENS_FACING_EXTERNAL: 기타 카메라. value : 2
+         */
 
-        Rect size = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
-        m.set_size(size);
+        StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+        Size size = map.getOutputSizes(ImageFormat.JPEG)[0];
+        setAspectRatioTextureView(size.getHeight(), size.getWidth());
+        Log.d(TAG, size.getWidth() + " gvgfg" + size.getHeight());
+
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+
         //level이 0으로 설정되어 있다면 제한 모드로 작동. 1로 설정되어 있다면 풀모드로 작동
         // 카메라 시스템에서 제공할 수 있는 프레임-레이트 범위를 가지고 옴
         int level = characteristics.get(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL);
@@ -194,10 +204,12 @@ public class MainActivity extends AppCompatActivity {
         if (width > height) {
             int newWidth = displayMetrics.widthPixels;
             int newHeight = ((displayMetrics.widthPixels * width) / height);
+            drawlinear.setLayoutParams(new FrameLayout.LayoutParams(newWidth, newHeight));
             surfaceView1.setLayoutParams(new FrameLayout.LayoutParams(newWidth, newHeight));
         } else {
             int newWidth = displayMetrics.widthPixels;
             int newHeight = ((displayMetrics.widthPixels * height) / width);
+            drawlinear.setLayoutParams(new FrameLayout.LayoutParams(newWidth, newHeight));
             surfaceView1.setLayoutParams(new FrameLayout.LayoutParams(newWidth, newHeight));
         }
     }
@@ -239,15 +251,18 @@ public class MainActivity extends AppCompatActivity {
             try {
                 CaptureRequest.Builder captureRequestBuilder = session.getDevice().createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
                 //captureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+                captureRequestBuilder.set(CaptureRequest.STATISTICS_FACE_DETECT_MODE, CameraMetadata.STATISTICS_FACE_DETECT_MODE_FULL);
+                captureRequestBuilder.set(CaptureRequest.CONTROL_EFFECT_MODE, CameraMetadata.CONTROL_EFFECT_MODE_MONO);
+                captureRequestBuilder.set(CaptureRequest.JPEG_THUMBNAIL_SIZE, new Size(1080,1920));
+                //captureRequestBuilder.set( CaptureRequest.SCALER_CROP_REGION, new Rect(0, 0, surfaceView1.getWidth(), surfaceView1.getHeight()));
                 captureRequestBuilder.addTarget(surfaceHolder.getSurface());
 
-                CaptureRequest.Builder icaptureRequestBuilder = session.getDevice().createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
-                captureRequestBuilder.set(CaptureRequest.STATISTICS_FACE_DETECT_MODE,
-                        CameraMetadata.STATISTICS_FACE_DETECT_MODE_FULL);
-                icaptureRequestBuilder.addTarget(imageReader.getSurface());
 
-                //session.setRepeatingRequest(captureRequestBuilder.build(), cameraCaptureCallback, null);
-                session.setRepeatingBurst(Arrays.asList(captureRequestBuilder.build(), icaptureRequestBuilder.build()), captureCallback, null);
+                //CaptureRequest.Builder icaptureRequestBuilder = session.getDevice().createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+                //icaptureRequestBuilder.addTarget(imageReader.getSurface());
+
+                session.setRepeatingRequest(captureRequestBuilder.build(), captureCallback, null);
+                //session.setRepeatingBurst(Arrays.asList(captureRequestBuilder.build(), icaptureRequestBuilder.build()), captureCallback, null);
             } catch (CameraAccessException e) {
                 Log.e(TAG, "cameraCaptureStateCallback onConfigured : ", e);
             }
@@ -264,13 +279,18 @@ public class MainActivity extends AppCompatActivity {
         public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
             super.onCaptureCompleted(session, request, result);
             //Integer mode = result.get(CaptureResult.STATISTICS_FACE_DETECT_MODE);
-            Face[] faces = result.get(CaptureResult.STATISTICS_FACES);
 
-            if (faces.length == 0) {
-                return;
-            } else {
-                Log.i(TAG, "faces : " + faces.length);
+            //Rect rect = request.get(CaptureRequest.SCALER_CROP_REGION);
+            //System.out.println("ttttttttt"+rect.left+", "+rect.top+", "+ rect.right+", "+rect.bottom);
+            //ttttttttt0, 0, 4032, 3024
+            try {
+                Face[] faces = result.get(CaptureResult.STATISTICS_FACES);
+                Log.d(TAG, "captureCallback faces length : " + faces.length);
                 m.set_face(faces);
+            }
+            catch (NullPointerException e){
+                Log.e(TAG, "captureCallback : " + e);
+                return;
             }
         }
     };
@@ -278,8 +298,6 @@ public class MainActivity extends AppCompatActivity {
     private ImageReader.OnImageAvailableListener imageAvailableListener = new ImageReader.OnImageAvailableListener() {
         @Override
         public void onImageAvailable(ImageReader reader) {
-            //System.out.println("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
-
             Image image = reader.acquireNextImage();
             ByteBuffer buffer = image.getPlanes()[0].getBuffer();
 
@@ -295,6 +313,8 @@ public class MainActivity extends AppCompatActivity {
             m.postRotate(90);
 
             img.setImageBitmap(bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), m, true));
+
+
             //System.out.println(bitmap.getWidth()+"ttttttttttttttttttttttt"+bitmap.getHeight());
             //1440ttttttttttttttttttttttt1080
             reader.discardFreeBuffers();

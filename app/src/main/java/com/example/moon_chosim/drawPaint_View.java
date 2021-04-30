@@ -7,6 +7,7 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.hardware.camera2.params.Face;
+import android.util.Log;
 import android.view.View;
 
 public class drawPaint_View extends View {
@@ -15,6 +16,9 @@ public class drawPaint_View extends View {
 
     Paint paint = new Paint();
     float W, H;
+    String TAG = "drawPaint_View";
+
+    boolean c = true;
 
     public drawPaint_View(Context context) {
         super(context);
@@ -22,20 +26,23 @@ public class drawPaint_View extends View {
         paint.setStrokeWidth(15);
         paint.setStyle(Paint.Style.STROKE);
     }
+
     //mPreviousPosition == bounds[l=0.00 t=280.00 r=1440.00 b=1680.00]
     //2960×1440
     @Override
     protected void onDraw(Canvas canvas) {
-        if (faces == null) return;
-
-        System.out.println("hhhh wwwww : " + canvas.getHeight() + ", " + canvas.getWidth());
-        for (Face face : faces) {
-            RectF rect = new RectF(face.getBounds());
-            canvas.drawRect(1440-(W*rect.bottom), H*rect.left, 1440-(W*rect.top), H*rect.right, paint);
-            //canvas.drawRect((float) (0.36 * rect.left), (float) (0.56 * rect.top), (float) (0.36 * rect.right), (float) (0.56 * rect.bottom), paint);
-            //System.out.println("left, top, right, bottom : " + (float) (0.36 * rect.left)+", "+ (float) (0.56 * rect.top)+", "+ (float) (0.36 * rect.right)+", "+ (float) (0.56 * rect.bottom));
-            //System.out.println("left, top, right, bottom : " + W * rect.left + ", " + rect.top + ", " + H * rect.right + ", " + rect.bottom);
-            System.out.println("left, top, right, bottom : " + (W*rect.bottom) + ", " +H*rect.left + ", " + (W*rect.top) + ", " + H*rect.right);
+        //System.out.println("hhhh wwwww : " + canvas.getHeight() + ", " + canvas.getWidth());
+        //hhhh wwwww : 1400, 1440
+        try {
+            for (Face face : faces) {
+                if (face.getScore() < 80) {
+                    continue;
+                }
+                Rect rect = face.getBounds();
+                canvas.drawRect((int) (1440 - (W * rect.bottom)), (int) (H * rect.left), (int) (1440 - (W * rect.top)), (int) (H * rect.right), paint);
+                Log.i(TAG, "left, top, right, bottom : " + (int) (1440 - (W * rect.bottom)) + ", " + (int) (H * rect.left) + ", 1440-" + (int) (1440 - (W * rect.top)) + ", " + (int) (H * rect.right));
+            }
+        } catch (NullPointerException e) {
         }
     }
 
@@ -45,13 +52,19 @@ public class drawPaint_View extends View {
     }
 
     public void set_size(Rect size) {
-        System.out.println("llllllllllllllll tttttttttttttttttttttttttttt : " + size.left +", "+size.top);
+        System.out.println("llllllllllllllll tttttttttttttttttttttttttttt : " + size.left + ", " + size.top);
         // llllllllllllllll tttttttttttttttttttttttttttt : 0, 0
-        System.out.println("rrrrrrrrrrrrrrrr bbbbbbbbbbbbbbbbbbbbbbbbbbbb : " + size.right +", "+size.bottom);
+        System.out.println("rrrrrrrrrrrrrrrr bbbbbbbbbbbbbbbbbbbbbbbbbbbb : " + size.right + ", " + size.bottom);
         // rrrrrrrrrrrrrrrr bbbbbbbbbbbbbbbbbbbbbbbbbbbb : 4032, 3024
 
-        W = (float) (1440.0/size.bottom);
-        H = (float) (1680.0/size.right);
-        System.out.println("tttttttttttttttttttttttt : " + W +", "+ H);
+        W = (float) (1440.0 / size.bottom);
+        H = (float) (1680.0 / size.right);
+        //W = 1;
+        //H = 1;
+        System.out.println("tttttttttttttttttttttttt : " + W + ", " + H);
+    }
+
+    public void set_turn(boolean c) {
+        this.c = c;
     }
 }
